@@ -11,7 +11,7 @@ use win_kexp::{CTL_CODE, IOCTL};
 
 const HEVD_IOCTL_BUFFER_OVERFLOW_STACK: u32 = IOCTL!(0x800);
 
-fn exploit_stack_buffer_overflow() {
+fn exploit_stack_buffer_overflow_token_stealing() {
     let device_path = r"\\.\HackSysExtremeVulnerableDriver\0";
 
     println!("[+] Getting device handle {device_path}...");
@@ -60,5 +60,5 @@ fn exploit_stack_buffer_overflow() {
 }
 
 fn main() {
-    exploit_stack_buffer_overflow();
+    exploit_stack_buffer_overflow_token_stealing();
 }

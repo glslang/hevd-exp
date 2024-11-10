@@ -2,5 +2,6 @@
 resolver = "2"
 
 members = [
-    "stack_buffer_overflow",
+    "stack_buffer_overflow_token_stealing",
+    "stack_buffer_overflow_acl_edit",
 ]
