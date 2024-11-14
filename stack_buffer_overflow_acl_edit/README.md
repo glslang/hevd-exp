@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This post revisits the classic stack buffer overflow technique demonstrated in [Improsec's blog post](https://blog.improsec.com/tech-blog/windows-kernel-shellcode-on-windows-10-part-2) using HackSys Extreme Vulnerable Driver (HEVD), but updated for Windows 11. It makes use of the stack buffer overflow to modify the ACL of the winlogon process, and then spawns an elevated command prompt by injecting shellcode into the winlogon process.
+This post revisits the ACL kernel shellcode technique demonstrated in [Improsec's blog post](https://blog.improsec.com/tech-blog/windows-kernel-shellcode-on-windows-10-part-2) using HackSys Extreme Vulnerable Driver (HEVD), but updated for Windows 11. It makes use of the stack buffer overflow to modify the ACL of the winlogon process, and then spawns an elevated command prompt by injecting shellcode into the winlogon process.
 
 ## Background
 
