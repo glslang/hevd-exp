@@ -24,16 +24,16 @@ The exploit follows these steps:
 
 1. Obtain handle to the vulnerable driver
 2. Trigger buffer overflow to execute kernel shellcode
-2. Craft shellcode that:
+3. Craft shellcode that:
    - Locates winlogon process in kernel memory
    - Modifies ACL entries to grant access to the Authenticated Users group
 4. Inject shellcode into winlogon process to spawn elevated command prompt
 
 The initial HEVD exploitation is well documented and triggering the buffer overflow can be found in many other posts.
 
-The original blog post analysis still holds on Windows 11.
+For the remainder, it can be found that the original blog post analysis still holds on Windows 11.
 
-The security descriptor of the winlogon process can still be found at the same offsets,
+Following the original blog post, the security descriptor of the winlogon process can still be found at the same offsets,
 
 ```bash
 0: kd> !process 0 0 winlogon.exe
