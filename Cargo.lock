@@ -93,21 +93,21 @@ dependencies = [
 name = "stack_buffer_overflow_acl_edit"
 version = "0.1.0"
 dependencies = [
- "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
+ "win-kexp",
 ]
 
 [[package]]
 name = "stack_buffer_overflow_token_smep_no_kvashadow"
 version = "0.1.0"
 dependencies = [
- "win-kexp 0.1.0",
+ "win-kexp",
 ]
 
 [[package]]
 name = "stack_buffer_overflow_token_stealing"
 version = "0.1.0"
 dependencies = [
- "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
+ "win-kexp",
 ]
 
 [[package]]
@@ -150,20 +150,7 @@ checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
 [[package]]
 name = "win-kexp"
 version = "0.1.0"
-dependencies = [
- "byte-strings",
- "goblin",
- "hex",
- "thiserror",
- "windows",
- "windows-core",
- "windows-strings 0.2.0",
-]
-
-[[package]]
-name = "win-kexp"
-version = "0.1.0"
-source = "git+https://github.com/glslang/win-kexp.git#b95b42158ab756dfa5245753ec6479b73fef25c8"
+source = "git+https://github.com/glslang/win-kexp.git#92d5455d2b08e2bee32baaea8c2bbbc0fa66f4d0"
 dependencies = [
  "byte-strings",
  "goblin",
