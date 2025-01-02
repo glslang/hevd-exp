@@ -23,6 +23,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: microsoft/setup-msbuild@v1.1
       - uses: glslang/setup-masm@v1
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: cargo build --verbose
-      - run: cargo test --verbose
+      - name: Install Rust
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Cargo fmt
+        run: |
+          rustup component add rustfmt
+          cargo fmt --all --verbose -- --check
+      - name: Build
+        run: cargo build --verbose
+      - name: Test
+        run: cargo test --verbose
