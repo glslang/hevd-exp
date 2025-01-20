@@ -5,4 +5,5 @@ members = [
     "stack_buffer_overflow_acl_edit",
     "stack_buffer_overflow_token_stealing",
     "stack_buffer_overflow_token_stealing_smep_no_kvashadow",
+    "stack_buffer_overflow_token_stealing_smep_no_kvashadow_pte",
 ]

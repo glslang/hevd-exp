@@ -111,6 +111,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stack_buffer_overflow_token_stealing_smep_no_kvashadow_pte"
+version = "0.1.0"
+dependencies = [
+ "win-kexp",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,7 +157,7 @@ checksum = "adb9e6ca4f869e1180728b7950e35922a7fc6397f7b641499e8f3ef06e50dc83"
 [[package]]
 name = "win-kexp"
 version = "0.1.0"
-source = "git+https://github.com/glslang/win-kexp.git#40a20e1675d1de10c88b5ba5c18303b170636059"
+source = "git+https://github.com/glslang/win-kexp.git#1db8b8e12cfda0f683577709a85497c154128388"
 dependencies = [
  "byte-strings",
  "goblin",
