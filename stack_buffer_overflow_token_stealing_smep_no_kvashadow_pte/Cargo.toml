@@ -1,0 +1,7 @@
+[package]
+name = "stack_buffer_overflow_token_stealing_smep_no_kvashadow_pte"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+win-kexp = { git = "https://github.com/glslang/win-kexp.git" }
