@@ -3,6 +3,13 @@
 version = 3
 
 [[package]]
+name = "buffer_overflow_non_paged_pool_nx"
+version = "0.1.0"
+dependencies = [
+ "win-kexp 0.1.0",
+]
+
+[[package]]
 name = "byte-strings"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -44,6 +51,13 @@ name = "log"
 version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
+
+[[package]]
+name = "memory_disclosure_non_paged_pool_nx_named_pipe"
+version = "0.1.0"
+dependencies = [
+ "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
+]
 
 [[package]]
 name = "plain"
@@ -93,28 +107,28 @@ dependencies = [
 name = "stack_buffer_overflow_acl_edit"
 version = "0.1.0"
 dependencies = [
- "win-kexp",
+ "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
 ]
 
 [[package]]
 name = "stack_buffer_overflow_token_smep_no_kvashadow"
 version = "0.1.0"
 dependencies = [
- "win-kexp",
+ "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
 ]
 
 [[package]]
 name = "stack_buffer_overflow_token_stealing"
 version = "0.1.0"
 dependencies = [
- "win-kexp",
+ "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
 ]
 
 [[package]]
 name = "stack_buffer_overflow_token_stealing_smep_no_kvashadow_pte"
 version = "0.1.0"
 dependencies = [
- "win-kexp",
+ "win-kexp 0.1.0 (git+https://github.com/glslang/win-kexp.git)",
 ]
 
 [[package]]
@@ -157,7 +171,20 @@ checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
 [[package]]
 name = "win-kexp"
 version = "0.1.0"
-source = "git+https://github.com/glslang/win-kexp.git#d11e6db233662564582fdaf34a5dfed9bd7e8b7a"
+dependencies = [
+ "byte-strings",
+ "goblin",
+ "hex",
+ "thiserror",
+ "windows",
+ "windows-core",
+ "windows-strings",
+]
+
+[[package]]
+name = "win-kexp"
+version = "0.1.0"
+source = "git+https://github.com/glslang/win-kexp.git#c5bf0ad67c198f7456e67c710355f0a8ee4f66d4"
 dependencies = [
  "byte-strings",
  "goblin",
