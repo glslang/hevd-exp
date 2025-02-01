@@ -2,6 +2,8 @@
 resolver = "2"
 
 members = [
+    "buffer_overflow_non_paged_pool_nx",
+    "memory_disclosure_non_paged_pool_nx_named_pipe",
     "stack_buffer_overflow_acl_edit",
     "stack_buffer_overflow_token_stealing",
     "stack_buffer_overflow_token_stealing_smep_no_kvashadow",
