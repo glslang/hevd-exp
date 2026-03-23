@@ -21,7 +21,7 @@ jobs:
           - stable
     steps:
       - uses: actions/checkout@v6
-      - uses: microsoft/setup-msbuild@v2
+      - uses: microsoft/setup-msbuild@v3
       - uses: glslang/setup-masm@v1
       - name: Install Rust
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
