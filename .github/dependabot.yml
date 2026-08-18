@@ -11,10 +11,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "glslang"
-    assignees:
-      - "glslang"
     commit-message:
       prefix: "cargo"
       include: "scope"
@@ -30,10 +26,6 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "glslang"
-    assignees:
-      - "glslang"
     commit-message:
       prefix: "ci"
       include: "scope"
